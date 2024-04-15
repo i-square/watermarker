@@ -10,6 +10,22 @@ import textwrap
 from PIL import Image, ImageFont, ImageDraw, ImageEnhance, ImageChops, ImageOps
 
 
+def parse_args():
+    parser = argparse.ArgumentParser(description='Add a semi-transparent watermark to an image.')
+    parser.add_argument('-f', '--file', required=True, help='Image file path or directory.')
+    parser.add_argument('-m', '--mark', required=True, help='Watermark content.')
+    parser.add_argument('-o', '--out', default='./output', help='Image output directory, default is ./output.')
+    parser.add_argument('-c', '--color', default='#8B8B1B', help="Text color like '#000000', default is #8B8B1B.")
+    parser.add_argument('-s', '--space', default=75, type=int, help='Space between watermarks, default is 75.')
+    parser.add_argument('-a', '--angle', default=30, type=int, help='Rotate angle of watermarks, default is 30.')
+    parser.add_argument('--font-family', default='./font/青鸟华光简琥珀.ttf', help='Font family of text.')
+    parser.add_argument('--font-height-crop', default='1.2', help='Change watermark font height crop.')
+    parser.add_argument('--size', default=50, type=int, help='Font size of text, default is 50.')
+    parser.add_argument('--opacity', default=0.15, type=float, help='Opacity of watermarks, default is 0.15.')
+    parser.add_argument('--quality', default=90, type=int, help='Quality of output images, default is 90.')
+    return parser.parse_args()
+
+
 def add_mark(imagePath, mark, args):
     '''
     添加水印，然后保存图片
@@ -124,52 +140,32 @@ def gen_mark(args):
 
 
 def main():
-    parse = argparse.ArgumentParser(formatter_class=argparse.RawTextHelpFormatter)
-    parse.add_argument("-f", "--file", type=str,
-                       help="image file path or directory")
-    parse.add_argument("-m", "--mark", type=str, help="watermark content")
-    parse.add_argument("-o", "--out", default="./output",
-                       help="image output directory, default is ./output")
-    parse.add_argument("-c", "--color", default="#8B8B1B", type=str,
-                       help="text color like '#000000', default is #8B8B1B")
-    parse.add_argument("-s", "--space", default=75, type=int,
-                       help="space between watermarks, default is 75")
-    parse.add_argument("-a", "--angle", default=30, type=int,
-                       help="rotate angle of watermarks, default is 30")
-    parse.add_argument("--font-family", default="./font/青鸟华光简琥珀.ttf", type=str,
-                       help=textwrap.dedent('''\
-                       font family of text, default is './font/青鸟华光简琥珀.ttf'
-                       using font in system just by font file name
-                       for example 'PingFang.ttc', which is default installed on macOS
-                       '''))
-    parse.add_argument("--font-height-crop", default="1.2", type=str,
-                       help=textwrap.dedent('''\
-                       change watermark font height crop
-                       float will be parsed to factor; int will be parsed to value
-                       default is '1.2', meaning 1.2 times font size
-                       this useful with CJK font, because line height may be higher than size
-                       '''))
-    parse.add_argument("--size", default=50, type=int,
-                       help="font size of text, default is 50")
-    parse.add_argument("--opacity", default=0.15, type=float,
-                       help="opacity of watermarks, default is 0.15")
-    parse.add_argument("--quality", default=80, type=int,
-                       help="quality of output images, default is 80")
-
-    args = parse.parse_args()
+    args = parse_args()
 
     if isinstance(args.mark, str) and sys.version_info[0] < 3:
         args.mark = args.mark.decode("utf-8")
 
     mark = gen_mark(args)
 
+    try:
+        from tqdm import tqdm
+        use_tqdm = True
+    except ImportError:
+        use_tqdm = False
+
     if os.path.isdir(args.file):
         names = os.listdir(args.file)
+        if use_tqdm:
+            names = tqdm(names)
         for name in names:
             image_file = os.path.join(args.file, name)
             add_mark(image_file, mark, args)
     else:
-        add_mark(args.file, mark, args)
+        if os.path.isfile(args.file):
+            add_mark(args.file, mark, args)
+        else:
+            print(f"The file {args.file} does not exist.")
+            sys.exit(1)
 
 
 if __name__ == '__main__':
